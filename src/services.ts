@@ -1,4 +1,4 @@
-import async from 'async';
+import async from "async";
 
 const { DISABLE_REDIS_CACHE } = process.env;
 const HTTP_OK = 200;
@@ -12,27 +12,27 @@ const serviceClearSingle = {
     this.path = path;
   },
   async find(params) {
-    const client = this.app.get('redisClient');
+    const client = this.app.get("redisClient");
     const { target } = params.query;
 
     if (!target) {
       return {
-        message: 'You must provide key',
+        message: "You must provide key",
         status: HTTP_NOT_FOUND
       };
     }
 
     if (!client) {
       return {
-        message: 'Redis unavailable',
+        message: "Redis unavailable",
         status: HTTP_SERVER_ERROR
       };
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       client.get(target, (err, reply) => {
         if (err) {
-          return resolve({ message: 'something went wrong' + err.message });
+          return resolve({ message: "something went wrong" + err.message });
         }
 
         if (!reply) {
@@ -44,7 +44,7 @@ const serviceClearSingle = {
 
         client.del(target, (err, reply) => {
           if (err) {
-            return resolve({ message: 'something went wrong' + err.message });
+            return resolve({ message: "something went wrong" + err.message });
           }
 
           if (!reply) {
@@ -61,7 +61,7 @@ const serviceClearSingle = {
         });
       });
     });
-  },
+  }
 };
 const serviceClearGroup = {
   setup(app, path) {
@@ -69,20 +69,20 @@ const serviceClearGroup = {
     this.path = path;
   },
   async find(params) {
-    const client = this.app.get('redisClient');
+    const client = this.app.get("redisClient");
     const { target } = params.query;
 
     if (!client) {
       return {
-        message: 'Redis unavailable',
+        message: "Redis unavailable",
         status: HTTP_SERVER_ERROR
       };
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       client.lrange(`group-${target}`, 0, -1, (err, reply) => {
         if (err) {
-          return resolve({ message: 'something went wrong' + err.message });
+          return resolve({ message: "something went wrong" + err.message });
         }
 
         // If the list/group existed and contains something
@@ -93,38 +93,43 @@ const serviceClearGroup = {
           });
         }
 
-        async.eachOfLimit(reply, 10, async.asyncify(async (key) => {
-          return new Promise((res) => {
-            client.del(key, (err, reply) => {
-              if (err) {
-                return res({ message: 'something went wrong' + err.message });
-              }
+        async.eachOfLimit(
+          reply,
+          10,
+          async.asyncify(async key => {
+            return new Promise(res => {
+              client.del(key, (err, reply) => {
+                if (err) {
+                  return res({ message: "something went wrong" + err.message });
+                }
 
-              if (!reply) {
-                return res({
-                  message: `cache already cleared for key ${target}`,
-                  status: HTTP_NO_CONTENT
+                if (!reply) {
+                  return res({
+                    message: `cache already cleared for key ${target}`,
+                    status: HTTP_NO_CONTENT
+                  });
+                }
+
+                res({
+                  message: `cache cleared for key ${target}`,
+                  status: HTTP_OK
                 });
-              }
-
-              res({
-                message: `cache cleared for key ${target}`,
-                status: HTTP_OK
               });
             });
-          });
-        }), (err) => {
-          if (err) {
-            return resolve({ message: 'something went wrong' + err.message });
+          }),
+          err => {
+            if (err) {
+              return resolve({ message: "something went wrong" + err.message });
+            }
+            resolve({
+              message: `cache cleared for the group key: ${target}`,
+              status: HTTP_OK
+            });
           }
-          resolve({
-            message: `cache cleared for the group key: ${target}`,
-            status: HTTP_OK
-          });
-        });
+        );
       });
     });
-  },
+  }
 };
 const serviceClearAll = {
   setup(app, path) {
@@ -132,30 +137,30 @@ const serviceClearAll = {
     this.path = path;
   },
   async find() {
-    const client = this.app.get('redisClient');
+    const client = this.app.get("redisClient");
 
     if (!client) {
       return {
-        message: 'Redis unavailable',
+        message: "Redis unavailable",
         status: HTTP_SERVER_ERROR
       };
     }
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       client.flushdb(() => {
         resolve({
-          message: 'Cache cleared',
+          message: "Cache cleared",
           status: HTTP_OK
         });
       });
     });
-  },
+  }
 };
 
 export default (options: any = {}) => {
-  const pathPrefix = options.pathPrefix || '/cache';
+  const pathPrefix = options.pathPrefix || "/cache";
 
-  return function () {
+  return function() {
     const app = this;
 
     if (!DISABLE_REDIS_CACHE) {
@@ -164,5 +169,4 @@ export default (options: any = {}) => {
       app.use(`${pathPrefix}/clear/all`, serviceClearAll);
     }
   };
-}
-
+};
